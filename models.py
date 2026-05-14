@@ -17,8 +17,8 @@ class APIEndpoint(BaseModel):
     method: str  # GET, POST, PUT, DELETE
     path: str
     description: str = ""
-    request_body: dict[str, Any] = {}
-    response_body: dict[str, Any] = {}
+    request_body: dict[str, Any] | None = None
+    response_body: dict[str, Any] | None = None
 
 
 class APISpec(BaseModel):

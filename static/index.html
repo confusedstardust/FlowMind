@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowMind — AI 工作流生成</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f1117; color: #e1e4e8; min-height: 100vh;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 20px; }
+  header { text-align: center; margin-bottom: 40px; }
+  header h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
+  header p { color: #8b949e; margin-top: 8px; font-size: 0.95rem; }
+  .tagline { color: #58a6ff; font-size: 0.85rem; margin-top: 4px; }
+
+  .input-panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 12px;
+    padding: 24px; margin-bottom: 32px;
+  }
+  textarea {
+    width: 100%; height: 120px; background: #0d1117; border: 1px solid #30363d;
+    border-radius: 8px; color: #e1e4e8; padding: 14px; font-size: 0.95rem;
+    font-family: inherit; resize: vertical; outline: none;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { border-color: #58a6ff; }
+  .btn-row { display: flex; gap: 12px; margin-top: 16px; align-items: center; }
+  button {
+    padding: 10px 24px; border-radius: 8px; border: none; font-size: 0.9rem;
+    font-weight: 600; cursor: pointer; transition: all 0.15s;
+  }
+  .btn-primary { background: #238636; color: #fff; }
+  .btn-primary:hover { background: #2ea043; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-secondary { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+  .btn-secondary:hover { background: #30363d; }
+  .samples { margin-left: auto; color: #8b949e; font-size: 0.82rem; }
+  .samples a { color: #58a6ff; cursor: pointer; margin-left: 12px; }
+  .samples a:hover { text-decoration: underline; }
+
+  .spinner { display: none; text-align: center; padding: 40px; }
+  .spinner.active { display: block; }
+  .spinner::after {
+    content: ''; display: inline-block; width: 28px; height: 28px;
+    border: 3px solid #30363d; border-top-color: #58a6ff; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error { display: none; background: #490202; border: 1px solid #f85149; border-radius: 8px;
+    padding: 14px 18px; margin-bottom: 24px; color: #f85149; font-size: 0.9rem; }
+  .error.active { display: block; }
+
+  .results { display: none; }
+  .results.active { display: block; }
+
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid #30363d; margin-bottom: 24px; }
+  .tab {
+    padding: 10px 20px; background: none; border: none; color: #8b949e;
+    font-size: 0.88rem; cursor: pointer; border-bottom: 2px solid transparent;
+    transition: all 0.15s; font-weight: 500;
+  }
+  .tab:hover { color: #e1e4e8; }
+  .tab.active { color: #58a6ff; border-bottom-color: #58a6ff; }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .card {
+    background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+    padding: 20px; margin-bottom: 16px;
+  }
+  .card h3 { font-size: 1rem; margin-bottom: 8px; color: #58a6ff; }
+
+  .mermaid-container {
+    background: #fff; border-radius: 8px; padding: 24px; overflow-x: auto;
+  }
+  .mermaid-container svg { max-width: 100%; }
+
+  .decision-badge {
+    display: inline-block; background: #d29922; color: #0d1117; font-size: 0.75rem;
+    font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 8px;
+  }
+  .endpoint { font-family: "SF Mono", "Fira Code", monospace; font-size: 0.85rem; }
+  .endpoint .method {
+    display: inline-block; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+    font-size: 0.78rem; margin-right: 8px; min-width: 52px; text-align: center;
+  }
+  .method.GET { background: #1f6feb; color: #fff; }
+  .method.POST { background: #238636; color: #fff; }
+  .method.PUT { background: #9e6f03; color: #fff; }
+  .method.DELETE { background: #da3633; color: #fff; }
+
+  .json-block {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 8px;
+    padding: 16px; font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 0.82rem; white-space: pre-wrap; overflow-x: auto;
+    max-height: 300px; overflow-y: auto; color: #7ee787;
+  }
+
+  .decision-card { border-left: 3px solid #d29922; padding-left: 16px; }
+  .decision-card .question { font-weight: 600; color: #d29922; margin-bottom: 8px; }
+  .decision-card .tradeoff { color: #8b949e; font-size: 0.88rem; padding: 4px 0; }
+  .decision-card .tradeoff::before { content: "⇢ "; color: #58a6ff; }
+  .decision-card .accountability { margin-top: 8px; font-size: 0.82rem; color: #6e7681;
+    font-style: italic; }
+
+  footer { text-align: center; margin-top: 60px; padding: 20px;
+    color: #484f58; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>FlowMind</h1>
+    <p>用自然语言描述流程，AI 自动生成工作流图、API 规范和决策分析</p>
+    <p class="tagline">AI 设计工作流，人类负责判断。</p>
+  </header>
+
+  <div class="input-panel">
+    <textarea id="prompt" placeholder="用自然语言描述你的工作流...
+例如：用户注册流程，包含邮箱验证、密码强度检查、可选的双因素认证，以及管理员审核步骤。"></textarea>
+    <div class="btn-row">
+      <button class="btn-primary" id="submit" onclick="generate()">生成工作流</button>
+      <button class="btn-secondary" onclick="clearAll()">清空</button>
+      <span class="samples">
+        示例：
+        <a onclick="useSample('用户注册流程，包含邮箱验证、密码强度检查、可选的双因素认证，以及管理员审核步骤')">用户注册</a>
+        <a onclick="useSample('订单处理流程，从下单到发货，包含支付验证、库存检查、物流选择')">订单处理</a>
+        <a onclick="useSample('内容审核工作流，用户提交内容后自动审核、人工复审、发布或驳回')">内容审核</a>
+      </span>
+    </div>
+  </div>
+
+  <div class="spinner" id="spinner"></div>
+  <div class="error" id="error"></div>
+
+  <div class="results" id="results">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('diagram')">工作流图</button>
+      <button class="tab" onclick="switchTab('api')">API 规范</button>
+      <button class="tab" onclick="switchTab('decisions')">
+        决策节点 <span id="decision-count"></span>
+      </button>
+      <button class="tab" onclick="switchTab('raw')">JSON</button>
+    </div>
+
+    <div class="tab-content active" id="tab-diagram">
+      <div class="card">
+        <h3 id="workflow-title"></h3>
+        <p style="color:#8b949e;margin-bottom:16px" id="workflow-desc"></p>
+        <div class="mermaid-container" id="mermaid-render"></div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-api">
+      <div id="api-endpoints"></div>
+    </div>
+
+    <div class="tab-content" id="tab-decisions">
+      <div id="decision-list"></div>
+    </div>
+
+    <div class="tab-content" id="tab-raw">
+      <div class="json-block" id="raw-json"></div>
+    </div>
+
+    <div style="text-align:right;margin-top:16px">
+      <button class="btn-secondary" onclick="downloadJSON()">下载 JSON</button>
+    </div>
+  </div>
+
+  <footer>
+    FlowMind — 原生 AI 工作流生成平台 · AI 设计，人类判断
+  </footer>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
